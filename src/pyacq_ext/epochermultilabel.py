@@ -38,6 +38,7 @@ class ThreadPollInputUntilPosWaited(ThreadPollInput):
                 pos_waited for pos_waited in self.pos_waited_list if pos < pos_waited[0]]
 
 
+
 class EpocherMultiLabel(Node,  QtCore.QObject):
     """Node that accumulate in a ring buffer chunk of a multi signals on trigger events configurable.
 
