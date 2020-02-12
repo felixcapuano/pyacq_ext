@@ -74,7 +74,7 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
         QtCore.QObject.__init__(self, parent)
         Node.__init__(self, **kargs)
 
-    def _configure(self, parameters=_default_params, max_xsize=2.):
+    def _configure(self, parameters, max_xsize=2.):
         """Parameters
         ----------
         parameters : dict
@@ -130,6 +130,9 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
 
         self.pos_waiter.stop()
         self.pos_waiter.wait()
+    
+    def _close(self):
+        pass
 
     def on_new_trig(self, trig_num, trig_indexes):
         for pos, pts, channel, classification, label in trig_indexes:
