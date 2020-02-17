@@ -136,8 +136,6 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
 
     def on_new_trig(self, trig_num, trig_indexes):
         for pos, pts, channel, classification, label in trig_indexes:
-            print('Just captured new triger : {}, Position : {}'.format(
-                trig_indexes, pos))
 
             label = label.decode()
             if label in self.parameters.keys():
@@ -145,7 +143,6 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
                 self.pos_waiter.append_limit(pos_waited, label)
 
     def on_pos_reached(self, pos, label):
-        print('{} reach the pos at {}!'.format(label, pos))
 
         size_stock = self.parameters[label]['size']
         epoch = self.inputs['signals'].get_data(
