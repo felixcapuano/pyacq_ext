@@ -9,7 +9,7 @@ from pyqtgraph.Qt import QtCore, QtGui
 import pyacq
 from pyacq_ext.epochermultilabel import EpocherMultiLabel
 from pyacq import create_manager
-from pyacq.devices.brainampsocket import BrainAmpSocket
+from pyacq_ext.brainampsocket import BrainAmpSocket
 from pyacq.viewers.qoscilloscope import QOscilloscope
 
 
@@ -40,11 +40,24 @@ def test_brainampsocket():
     """
     Epocher Node
     """
+    params = {
+        "S  7":
+        { 
+            "right_sweep": 0.002,
+            "left_sweep": 0.001,
+            "max_stock": 1
+        }
+    }
     epocher = EpocherMultiLabel()
-    epocher.configure()
+    epocher.configure(parameters = params)
     epocher.inputs['signals'].connect(dev.outputs['signals'])
     epocher.inputs['triggers'].connect(dev.outputs['triggers'])
     epocher.initialize()
+
+    def on_new_epoch(label, epoch):
+        print(epoch)
+
+    epocher.new_chunk.connect(on_new_epoch)
 
     dev.start()
     epocher.start()
@@ -67,6 +80,7 @@ def test_brainampsocket():
     #~ timer.start()
 
     app.exec_()
+
 
 if __name__ == '__main__':
     test_brainampsocket()
