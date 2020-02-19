@@ -136,7 +136,9 @@ class BrainAmpSocket(Node):
         buf_header = recv_brainamp_frame(brainamp_socket, 24)
         id1, id2, id3, id4, msgsize, msgtype = struct.unpack('<llllLL', buf_header)
         rawdata = recv_brainamp_frame(brainamp_socket, msgsize - 24)
-        assert msgtype == 1, 'First message from brainamp is not type 1'
+        # assert msgtype == 1, 'First message from brainamp is not type 1'
+        if msgtype != 1:
+            raise Exception('First message from brainamp is not type 1')
         self.nb_channel, sample_interval = struct.unpack('<Ld', rawdata[:12])
         n = self.nb_channel
         sample_interval = sample_interval*1e-6

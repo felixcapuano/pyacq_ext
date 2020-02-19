@@ -188,4 +188,4 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
 
         for params in self.parameters.values():
             if params.keys() != self._params_ex.keys():
-                raise Exception(':parameters: wrong format')
+                raise Exception('Argument: parameters wrong format')
