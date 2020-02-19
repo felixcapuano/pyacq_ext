@@ -56,6 +56,9 @@ class BrainAmpThread(QtCore.QThread):
 
         head = 0
         head_marker = 0
+
+        compteur = 0
+
         while True:
             with self.lock:
                 if not self.running:
@@ -90,8 +93,6 @@ class BrainAmpThread(QtCore.QThread):
                 head_marker += nb_marker
                 markers['pos'] += (head - points)
                 self.outputs['triggers'].send(markers, index=nb_marker)
-                
-                # if len(markers)>0 : print(markers['pos'])
 
         brainamp_socket.close()
 

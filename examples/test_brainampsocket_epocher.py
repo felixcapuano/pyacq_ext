@@ -43,8 +43,8 @@ def test_brainampsocket():
     params = {
         "S  7":
         { 
-            "right_sweep": 0.002,
-            "left_sweep": 0.001,
+            "right_sweep": 0.003,
+            "left_sweep": 0.00,
             "max_stock": 1
         }
     }
@@ -55,7 +55,7 @@ def test_brainampsocket():
     epocher.initialize()
 
     def on_new_epoch(label, epoch):
-        print(epoch)
+        print(epoch.astype(int))
 
     epocher.new_chunk.connect(on_new_epoch)
 
