@@ -9,7 +9,7 @@ from pyqtgraph.Qt import QtCore, QtGui
 import pyacq
 from pyacq_ext.epochermultilabel import EpocherMultiLabel
 from pyacq import create_manager
-from pyacq_ext.brainampsocket import BrainAmpSocket
+from pyacq_ext.brainampsocketbis import BrainAmpSocketBis
 from pyacq.viewers.qoscilloscope import QOscilloscope
 
 
@@ -21,7 +21,7 @@ def test_brainampsocket():
     """
     Data Acquisition Node
     """
-    dev = BrainAmpSocket()
+    dev = BrainAmpSocketBis()
     dev.configure(brainamp_host='127.0.0.1', brainamp_port=51244)
     dev.outputs['signals'].configure(protocol='tcp', interface='127.0.0.1',transfermode='plaindata',)
     dev.outputs['triggers'].configure(protocol='tcp', interface='127.0.0.1',transfermode='plaindata',)

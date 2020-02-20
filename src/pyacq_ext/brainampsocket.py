@@ -56,20 +56,17 @@ class BrainAmpThread(QtCore.QThread):
 
         head = 0
         head_marker = 0
-
-        compteur = 0
-
         while True:
             with self.lock:
-                if not self.running:
-                    break
+                    if not self.running:
+                        break
 
             buf_header = recv_brainamp_frame(brainamp_socket, 24)
             (id1, id2, id3, id4, msgsize, msgtype) = struct.unpack('<llllLL', buf_header)
 
             rawdata = recv_brainamp_frame(brainamp_socket, msgsize - 24)
            
-            # TODO msgtype == 3 (msgtype == 1 is header done in Node.configure)
+            # TODO  msgtype == 3 (msgtype == 1 is header done in Node.configure)
             if msgtype == 4:
                 #~ block, chunk, markers = get_signal_and_markers(rawdata, self.nb_channel)
                 hs = 12
@@ -136,9 +133,7 @@ class BrainAmpSocket(Node):
         buf_header = recv_brainamp_frame(brainamp_socket, 24)
         id1, id2, id3, id4, msgsize, msgtype = struct.unpack('<llllLL', buf_header)
         rawdata = recv_brainamp_frame(brainamp_socket, msgsize - 24)
-        # assert msgtype == 1, 'First message from brainamp is not type 1'
-        if msgtype != 1:
-            raise Exception('First message from brainamp is not type 1')
+        assert msgtype == 1, 'First message from brainamp is not type 1'
         self.nb_channel, sample_interval = struct.unpack('<Ld', rawdata[:12])
         n = self.nb_channel
         sample_interval = sample_interval*1e-6
