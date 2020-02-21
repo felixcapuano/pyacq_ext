@@ -2,21 +2,35 @@
 # Copyright (c) 2016, French National Center for Scientific Research (CNRS)
 # Distributed under the (new) BSD License. See LICENSE for more info.
 
-import numpy as np
 import mne
-
-from pyacq.core import Node, register_node_type
+import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
 
+from pyacq.core import Node, register_node_type
+
+_dtype_trigger = [('pos', 'int64'),
+                ('points', 'int64'),
+                ('channel', 'int64'),
+                ('type', 'S16'),  # TODO check size
+                ('description', 'S16'),  # TODO check size
+                ]
 
 class RawDeviceBuffer(Node):
     """A fake analogsignal device.
     
     This node streams data from a predefined buffer in an endless loop.
     """
-    _output_specs = {'signals': dict(streamtype='analogsignal', 
-                                                shape=(-1, 16), compression ='', sample_rate =30.
-                                                )}
+    _output_specs = {
+                        'signals': dict(
+                            streamtype='analogsignal', 
+                            shape=(-1, 16),
+                            compression ='',
+                            sample_rate =30.),
+                        'triggers': dict(
+                            streamtype = 'event',
+                            dtype = _dtype_trigger,
+                            shape = (-1,)),
+                    }
 
     def __init__(self, **kargs):
         Node.__init__(self, **kargs)
@@ -48,8 +62,8 @@ class RawDeviceBuffer(Node):
         
         self.channel_names = raw.info['ch_names']
         
-        self.output.spec['shape'] = (-1, self.nb_channel)
-        self.output.spec['sample_rate'] = 1. / self.sample_interval
+        self.outputs['signals'].spec['shape'] = (-1, self.nb_channel)
+        self.outputs['signals'].spec['sample_rate'] = 1. / self.sample_interval
         
         self.buffer = np.transpose(raw.get_data())
         # TODO raise exception
@@ -58,12 +72,28 @@ class RawDeviceBuffer(Node):
         
         chan = 0
         for sensor in raw.info['chs']:
-            self.buffer[:,chan] /= sensor['cal']*1000000
+            self.buffer[:,chan] /= sensor['cal']*1e6
             chan +=1
+
+        self.markers = self.load_markers(raw)
 
         self.length = self.buffer.shape[0]
         
-        self.output.spec['dtype'] = self.buffer.dtype.name
+        self.outputs['signals'].spec['dtype'] = self.buffer.dtype.name
+    
+    def load_markers(self, raw):
+        markers_list = list()
+
+        for m in raw.annotations:
+            pos = int(m['onset']*1000)
+            description, label = m['description'].split('/')
+
+            markers_list.append((pos, 0, 0, description.encode(), label.encode()))
+
+        del markers_list[0]
+
+        return markers_list
+
     
     def after_output_configure(self, outputname):
         if outputname == 'signals':
@@ -90,6 +120,20 @@ class RawDeviceBuffer(Node):
         i1 = self.head%self.length
         self.head += self.chunksize
         i2 = i1 + self.chunksize
-        self.output.send(self.buffer[i1:i2, :], index=self.head)
+        self.outputs['signals'].send(self.buffer[i1:i2, :], index=self.head)
+
+        markers_to_send = [mrk for mrk in self.markers if i1<mrk[0]<=i2]
+
+        ## TODO Comm between epocher had to be improve useless data sended
+        nb_marker = len(markers_to_send)
+
+        markers = np.empty((nb_marker,), dtype=_dtype_trigger)
+        for m in range(nb_marker):
+            markers['pos'][m], markers['points'][m],markers['channel'][m] =  markers_to_send[m][0], 0, 0
+            markers['type'][m], markers['description'][m] = markers_to_send[m][3], markers_to_send[m][4]
+
+        self.outputs['triggers'].send(markers, index=nb_marker)
+
+        
 
 register_node_type(RawDeviceBuffer)

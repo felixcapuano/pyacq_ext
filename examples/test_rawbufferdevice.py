@@ -4,44 +4,69 @@
 
 import time
 
-from pyacq_ext.rawbufferdevice import RawDeviceBuffer
-from pyacq.viewers import QOscilloscope
+import mne
+import numpy as np
+from mne.io.brainvision.brainvision import _read_annotations_brainvision
 from PyQt5 import QtGui
 
-import numpy as np
-import mne
+from pyacq.viewers import QOscilloscope
+from pyacq_ext.rawbufferdevice import RawDeviceBuffer
+from pyacq_ext.dataviewer import DataViewer
+
 
 def test_npbufferdevice():
+    pathHDR = 'E:\Documents\Dev\python\pybart_project\pybart\eeg_data_sample\CAPFE_0002.vhdr'
+    pathMRK = 'E:\Documents\Dev\python\pybart_project\pybart\eeg_data_sample\CAPFE_0002.vmrk'
+
+    # raw = mne.io.read_raw_brainvision(pathHDR)
+    # markers = read_annotations(raw)
+    
+    # i1, i2 = 20000,20600
+    # mrks = [mrk for mrk in markers if i1<mrk[0]<i2]
+
+    # print(mrks)
+    
+    pyacq_node(pathHDR)
+
+def read_annotations(raw):
+    markers_list = list()
+
+    for m in raw.annotations:
+        pos = int(m['onset']*1000)
+        description, label = m['description'].split('/')
+
+        markers_list.append((pos, 0, 0, description.encode(), label.encode()))
+
+    del markers_list[0]
+
+    return np.array(markers_list)
+
+def pyacq_node(path):
     app = QtGui.QApplication([])
 
-    path = 'C:\\Users\\User\\Documents\\pybart\\eeg_data_sample\\CAPFE_0001.vhdr'
-    
-    # sigs = np.random.randn(2560, 7).astype('float64')
-    raw = mne.io.read_raw_brainvision(path)
-    sigsRaw = raw.get_data()
-    
-    sigsReshape = np.transpose(sigsRaw)
-    
-    sigs = sigsReshape*1000000/0.0488281
-
     dev = RawDeviceBuffer()
-    dev.configure(nb_channel=16, sample_interval=0.001, chunksize=10, buffer=sigs)
-    dev.output.configure(protocol='tcp', interface='127.0.0.1', transfermode='plaindata')
+    dev.configure(raw_file=path, chunksize=10)
+    dev.outputs['signals'].configure(protocol='tcp', interface='127.0.0.1', transfermode='plaindata')
+    dev.outputs['triggers'].configure(protocol='tcp', interface='127.0.0.1', transfermode='plaindata')
     dev.initialize()
 
     osc = QOscilloscope()
     osc.configure()
-    osc.input.connect(dev.output)
+    osc.input.connect(dev.outputs['signals'])
     osc.initialize()
+
+    # tv = DataViewer()
+    # tv.configure()
+    # tv.input.connect(dev.outputs['triggers'])
+    # tv.initialize()
     
     dev.start()
     osc.start()
     osc.show()
+    # tv.start()
 
     app.exec_()
 
 if __name__ == '__main__':
 
     test_npbufferdevice()
-
- 

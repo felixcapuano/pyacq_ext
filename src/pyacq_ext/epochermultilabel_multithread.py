@@ -87,9 +87,8 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
         self.trig_poller.stop()
         self.trig_poller.wait()
 
-    # TODO ValueError: not enough values to unpack (expected 2, got 1). Check logs.txt
     def on_new_trig(self, trig_num, trig_indexes):
-
+        
         for pos, pts, channel, classification, name in trig_indexes:
 
             print('Just captured new triger : {}'.format(trig_indexes))

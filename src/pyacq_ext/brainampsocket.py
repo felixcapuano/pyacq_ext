@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2016, French National Center for Scientific Research (CNRS)
 # Distributed under the (new) BSD License. See LICENSE for more info.
+"""
+TODO:
+Modifier le format de l'envoie des triggers
+voir pour enlever les triggers vide
+modifier le nom de la class et du fichier
+"""
 
 import numpy as np
 
