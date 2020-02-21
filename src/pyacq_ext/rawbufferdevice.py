@@ -2,6 +2,7 @@
 # Copyright (c) 2016, French National Center for Scientific Research (CNRS)
 # Distributed under the (new) BSD License. See LICENSE for more info.
 
+import os.path
 import mne
 import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
@@ -53,9 +54,15 @@ class RawDeviceBuffer(Node):
 
     def _configure(self, raw_file, chunksize=10):
         
-        # TODO check if file is vhdr and raw
-        raw = mne.io.read_raw_brainvision(raw_file)
+        if not os.path.isfile(raw_file):
+            raise ValueError("{} don't exist!".format(raw_file))
 
+        extension = os.path.splitext(raw_file)[1]
+        if extension == '.vhdr':
+            raw = mne.io.read_raw_brainvision(raw_file)
+        else:
+            raise ValueError("{} file not supported".format(raw_file))
+        
         self.nb_channel = raw.info['nchan']
         self.sample_interval = 1./raw.info['sfreq']
         self.chunksize = chunksize

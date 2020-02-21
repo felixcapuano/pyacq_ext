@@ -184,8 +184,8 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
 
     def _dict_format(self):
         if type(self.parameters) is not dict:
-            raise Exception('Argument :parameters: has to be type `dict`')
+            raise TypeError('Argument :parameters: has to be type `dict`')
 
         for params in self.parameters.values():
             if params.keys() != self._params_ex.keys():
-                raise Exception('Argument: parameters wrong format')
+                raise ValueError('Argument: parameters wrong format')
