@@ -136,7 +136,6 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
 
     def on_new_trig(self, trig_num, trig_indexes):
         for pos, pts, channel, description, label in trig_indexes:
-
             label = label.decode()
             if label in self.parameters.keys():
                 pos_waited = pos + self.parameters[label]['right_limit']
