@@ -33,8 +33,10 @@ class RawDeviceBuffer(Node):
                             shape = (-1,)),
                     }
 
-    def __init__(self, **kargs):
+    def __init__(self, with_marker=False, **kargs):
         Node.__init__(self, **kargs)
+
+        self.with_marker = with_marker
 
     def configure(self, *args, **kwargs):
         """
@@ -138,8 +140,9 @@ class RawDeviceBuffer(Node):
         for m in range(nb_marker):
             markers['pos'][m], markers['points'][m],markers['channel'][m] =  markers_to_send[m][0], 0, 0
             markers['type'][m], markers['description'][m] = markers_to_send[m][3], markers_to_send[m][4]
-
-        self.outputs['triggers'].send(markers, index=nb_marker)
+        
+        if self.with_marker:
+            self.outputs['triggers'].send(markers, index=nb_marker)
 
         
 
