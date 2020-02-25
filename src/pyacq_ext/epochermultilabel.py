@@ -140,7 +140,7 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
             if label in self.parameters.keys():
                 pos_waited = pos + self.parameters[label]['right_limit']
                 self.pos_waiter.append_limit(pos_waited, label)
-
+                
     def on_pos_reached(self, pos, label):
 
         size_stock = self.parameters[label]['size']
