@@ -60,7 +60,7 @@ class RawDeviceBuffer(Node):
 
         extension = os.path.splitext(raw_file)[1]
         if extension == '.vhdr':
-            raw = mne.io.read_raw_brainvision(raw_file)
+            raw = mne.io.read_raw_brainvision(raw_file, verbose=False)
         else:
             raise ValueError("{} file not supported".format(raw_file))
 
