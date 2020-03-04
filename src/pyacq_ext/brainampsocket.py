@@ -83,6 +83,7 @@ class BrainAmpThread(QtCore.QThread):
                 sigs = np.frombuffer(rawdata[hs:hs+sigsize], dtype=dt)
                 sigs = sigs.reshape(points, self.nb_channel)
                 head += points
+                sigs = sigs * 0.0488281
                 self.outputs['signals'].send(sigs, index=head)
 
                 # Extract markers
