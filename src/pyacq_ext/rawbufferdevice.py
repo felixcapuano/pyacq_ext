@@ -60,7 +60,7 @@ class RawDeviceBuffer(Node):
 
         extension = os.path.splitext(raw_file)[1]
         if extension == '.vhdr':
-            raw = mne.io.read_raw_brainvision(raw_file, verbose=False)
+            raw = mne.io.read_raw_brainvision(raw_file, scale=1e6, verbose=False)
         else:
             raise ValueError("{} file not supported".format(raw_file))
 
@@ -78,10 +78,10 @@ class RawDeviceBuffer(Node):
         assert self.buffer.shape[1] == self.nb_channel, 'Wrong nb_channel'
         assert self.buffer.shape[0] % chunksize == 0, 'Wrong buffer.shape[0] not multiple chunksize'
 
-        chan = 0
-        for sensor in raw.info['chs']:
-            self.buffer[:, chan] /= sensor['cal']*1e6
-            chan += 1
+        # chan = 0
+        # for sensor in raw.info['chs']:
+        #     self.buffer[:, chan] /= sensor['cal']*1e6
+        #     chan += 1
 
         self.markers = self.load_markers(raw)
 

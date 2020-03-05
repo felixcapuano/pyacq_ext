@@ -42,12 +42,13 @@ def recv_brainamp_frame(brainamp_socket, reqsize):
 
 
 class BrainAmpThread(QtCore.QThread):
-    def __init__(self, outputs, brainamp_host, brainamp_port, nb_channel, parent=None):
+    def __init__(self, outputs, brainamp_host, brainamp_port, nb_channel, resolutions, parent=None):
         QtCore.QThread.__init__(self)
         self.outputs = outputs
         self.brainamp_host= brainamp_host
         self.brainamp_port= brainamp_port
         self.nb_channel = nb_channel
+        self.resolutions = resolutions
 
         self.lock = Mutex()
         self.running = False
@@ -83,7 +84,7 @@ class BrainAmpThread(QtCore.QThread):
                 sigs = np.frombuffer(rawdata[hs:hs+sigsize], dtype=dt)
                 sigs = sigs.reshape(points, self.nb_channel)
                 head += points
-                sigs = sigs * 0.0488281
+                sigs = sigs * self.resolutions[np.newaxis,:]
                 self.outputs['signals'].send(sigs, index=head)
 
                 # Extract markers
@@ -156,7 +157,7 @@ class BrainAmpSocket(Node):
 
     def _initialize(self):
         self._thread = BrainAmpThread(self.outputs, self.brainamp_host, self.brainamp_port,
-                             self.nb_channel, parent=self)
+                             self.nb_channel, self.resolutions, parent=self)
 
     def after_output_configure(self, outputname):
         if outputname == 'signals':
