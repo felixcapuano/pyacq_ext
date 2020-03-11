@@ -20,9 +20,11 @@ class TriggerHunterThread(QtCore.QThread):
         QtCore.QThread.__init__(self)
         self.outputs = outputs
 
+        self.addr = "tcp://{}:{}".format(host, port)
+
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PULL)
-        self.socket.bind("tcp://{}:{}".format(host, port))
+        self.socket.bind(self.addr)
         
         self.lock = Mutex()
         self.running = True
@@ -37,17 +39,13 @@ class TriggerHunterThread(QtCore.QThread):
             except zmq.ZMQError:
                 break
 
-        while True:
-            with self.lock:
-                    if not self.running:
-                        break
-
+        while self.running:
             # Wait for next triggers from client
+            msg = self.socket.recv()
             
-            triggers = self.socket.recv()
-            
-            if (triggers != b'21'):
-                trig = triggers.decode().split("/")
+            # TODO locate and abort the b'21' push in the game
+            if (msg != b'21'):
+                trig = msg.decode().split("/")
                 eventTime = (float)(trig[0])
                 label = (int)(trig[1])
 
@@ -67,10 +65,14 @@ class TriggerHunterThread(QtCore.QThread):
                     markers['description'][0] = "S  {}".format(label).encode("utf-8")
                     # print(markers)
                     self.outputs['triggers'].send(markers, index=nb_marker)
+            elif (msg is b'stop'):
+                self.running = False
 
     def stop(self):
         with self.lock:
             self.running = False
+
+            self.socket.disconnect(self.addr)
 
 class TriggerHunter(Node):
 
@@ -90,19 +92,19 @@ class TriggerHunter(Node):
     def _initialize(self):
         self._thread = TriggerHunterThread(self.outputs, self.host, self.port, parent=self)
 
-        self.poller = ThreadPollInput(self.inputs['signals'], return_data=True)
-        self.poller.new_data.connect(self.on_new_chunk)
+        self._poller = ThreadPollInput(self.inputs['signals'], return_data=True)
+        self._poller.new_data.connect(self.on_new_chunk)
 
     def _start(self):
-        self.poller.start()
+        self._poller.start()
         self._thread.start()
 
     def _stop(self):
         self._thread.stop()
         self._thread.wait()
 
-        self.poller.stop()
-        self.poller.wait()
+        self._poller.stop()
+        self._poller.wait()
 
     def _close(self):
         pass
