@@ -15,6 +15,7 @@ pyqt5 = "==5.14.1"
 PyQt5-sip= "==12.7.1"
 pytest = "==5.3.5"
 scipy = "==1.4.1"
+pygraph = "*"
 
 [requires]
 python_version = "3.7"

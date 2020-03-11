@@ -1,22 +1,16 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2016, French National Center for Scientific Research (CNRS)
 # Distributed under the (new) BSD License. See LICENSE for more info.
-"""
-TODO:
-Modifier le format de l'envoie des triggers
-voir pour enlever les triggers vide
-modifier le nom de la class et du fichier
-"""
-
-import numpy as np
-
-from pyacq.core import Node, register_node_type
-from pyqtgraph.Qt import QtCore, QtGui
-from pyqtgraph.util.mutex import Mutex
 
 import socket
 import struct
+import time
 
+import numpy as np
+from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.util.mutex import Mutex
+
+from pyacq.core import Node, register_node_type
 
 _dtype_trigger = [('pos', 'int64'),
                 ('points', 'int64'),
@@ -42,6 +36,9 @@ def recv_brainamp_frame(brainamp_socket, reqsize):
 
 
 class BrainAmpThread(QtCore.QThread):
+
+    sig_new_chunk = QtCore.pyqtSignal(int, int)
+
     def __init__(self, outputs, brainamp_host, brainamp_port, nb_channel, resolutions, parent=None):
         QtCore.QThread.__init__(self)
         self.outputs = outputs
@@ -52,6 +49,8 @@ class BrainAmpThread(QtCore.QThread):
 
         self.lock = Mutex()
         self.running = False
+
+        self.parent = parent
 
     def run(self):
         brainamp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,6 +85,10 @@ class BrainAmpThread(QtCore.QThread):
                 head += points
                 sigs = sigs * self.resolutions[np.newaxis,:]
                 self.outputs['signals'].send(sigs, index=head)
+                milliTime = (int)(time.time()*1000)
+                chunkIndex = (int)(head/points)
+
+                self.sig_new_chunk.emit(milliTime, chunkIndex)
 
                 # Extract markers
                 markers = np.empty((nb_marker,), dtype=_dtype_trigger)
@@ -106,7 +109,7 @@ class BrainAmpThread(QtCore.QThread):
             self.running = False
 
 
-class BrainAmpSocket(Node):
+class BrainVisionListener(Node):
     """
     BrainAmp EEG amplifier from Brain Products http://www.brainproducts.com/.
 
@@ -119,6 +122,7 @@ class BrainAmpSocket(Node):
                                 'triggers': dict(streamtype = 'event', dtype = _dtype_trigger,
                                                 shape = (-1,)),
                                 }
+
 
     def __init__(self, **kargs):
         Node.__init__(self, **kargs)
@@ -158,6 +162,7 @@ class BrainAmpSocket(Node):
     def _initialize(self):
         self._thread = BrainAmpThread(self.outputs, self.brainamp_host, self.brainamp_port,
                              self.nb_channel, self.resolutions, parent=self)
+        self._thread.sig_new_chunk.connect(self.on_new_chunk)
 
     def after_output_configure(self, outputname):
         if outputname == 'signals':
@@ -165,6 +170,8 @@ class BrainAmpSocket(Node):
             self.outputs[outputname].params['channel_info'] = channel_info
 
     def _start(self):
+        self.milliTime = time.time()*1000
+        self.chunkIndex = 0
         self._thread.start()
 
     def _stop(self):
@@ -174,5 +181,10 @@ class BrainAmpSocket(Node):
     def _close(self):
         pass
 
+    def on_new_chunk(self, milliTime, chunkIndex):
+        self.milliTime = milliTime
+        self.chunkIndex = chunkIndex
 
-register_node_type(BrainAmpSocket)
+
+
+register_node_type(BrainVisionListener)
