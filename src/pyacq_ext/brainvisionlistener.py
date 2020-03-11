@@ -37,7 +37,7 @@ def recv_brainamp_frame(brainamp_socket, reqsize):
 
 class BrainAmpThread(QtCore.QThread):
 
-    sig_new_chunk = QtCore.pyqtSignal(int, int)
+    sig_new_chunk = QtCore.pyqtSignal(int)
 
     def __init__(self, outputs, brainamp_host, brainamp_port, nb_channel, resolutions, parent=None):
         QtCore.QThread.__init__(self)
@@ -85,11 +85,7 @@ class BrainAmpThread(QtCore.QThread):
                 head += points
                 sigs = sigs * self.resolutions[np.newaxis,:]
                 self.outputs['signals'].send(sigs, index=head)
-                milliTime = (int)(time.time()*1000)
-                chunkIndex = (int)(head/points)
-
-                self.sig_new_chunk.emit(milliTime, chunkIndex)
-
+                
                 # Extract markers
                 markers = np.empty((nb_marker,), dtype=_dtype_trigger)
                 index = hs + sigsize
@@ -162,7 +158,7 @@ class BrainVisionListener(Node):
     def _initialize(self):
         self._thread = BrainAmpThread(self.outputs, self.brainamp_host, self.brainamp_port,
                              self.nb_channel, self.resolutions, parent=self)
-        self._thread.sig_new_chunk.connect(self.on_new_chunk)
+        
 
     def after_output_configure(self, outputname):
         if outputname == 'signals':
@@ -170,7 +166,6 @@ class BrainVisionListener(Node):
             self.outputs[outputname].params['channel_info'] = channel_info
 
     def _start(self):
-        self.milliTime = time.time()*1000
         self.chunkIndex = 0
         self._thread.start()
 
@@ -181,9 +176,7 @@ class BrainVisionListener(Node):
     def _close(self):
         pass
 
-    def on_new_chunk(self, milliTime, chunkIndex):
-        self.milliTime = milliTime
-        self.chunkIndex = chunkIndex
+    
 
 
 
