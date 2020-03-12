@@ -35,19 +35,17 @@ class TriggerHunterThread(QtCore.QThread):
         # dump message in the queue
         while True:
             try:
-                msg = self.socket.recv(zmq.NOBLOCK)
+                dump = self.socket.recv(zmq.NOBLOCK)
             except zmq.ZMQError:
                 break
 
         while self.running:
             # Wait for next triggers from client
-            msg = self.socket.recv()
-            
-            # TODO locate and abort the b'21' push in the game
-            if (msg != b'21'):
-                trig = msg.decode().split("/")
-                eventTime = (float)(trig[0])
-                label = (int)(trig[1])
+            try:
+                msg = self.socket.recv(zmq.NOBLOCK)
+                msg = msg.decode().split("/")
+                eventTime = (float)(msg[0])
+                label = (int)(msg[1])
 
                 # filter only triggers needed
                 if ( 1 <= label <= 9 ):
@@ -65,8 +63,8 @@ class TriggerHunterThread(QtCore.QThread):
                     markers['description'][0] = "S  {}".format(label).encode("utf-8")
                     # print(markers)
                     self.outputs['triggers'].send(markers, index=nb_marker)
-            elif (msg is b'stop'):
-                self.running = False
+            except zmq.ZMQError:
+                pass
 
     def stop(self):
         with self.lock:
