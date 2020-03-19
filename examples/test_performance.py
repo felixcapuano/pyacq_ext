@@ -1,12 +1,12 @@
 from pyqtgraph.Qt import QtCore, QtGui
 
 import pyacq
-from src.pyacq_ext.epochermultilabel import EpocherMultiLabel
-from src.pyacq_ext.rawbufferdevice import RawDeviceBuffer
-from src.pyacq_ext.brainvisionlistener import BrainVisionListener
+from pyacq_ext.epochermultilabel import EpocherMultiLabel
+from pyacq_ext.rawbufferdevice import RawDeviceBuffer
+from pyacq_ext.brainvisionlistener import BrainVisionListener
 from pyacq.viewers.qoscilloscope import QOscilloscope
-from src.pyacq_ext.triggerhunter import TriggerHunter
-from src.pyacq_ext.dataviewer import DataViewer
+from pyacq_ext.triggerhunter import TriggerHunter
+from pyacq_ext.dataviewer import DataViewer
 
 
 def test_brainampsocket():
@@ -20,16 +20,6 @@ def test_brainampsocket():
     trig.configure()
     trig.outputs['triggers'].configure(protocol='tcp', interface='127.0.0.1',transfermode='plaindata',)
     trig.initialize()
-
-    """
-    Data Acquisition Node
-    """
-    rawF = "C:\\Users\\User\\Documents\\pybart\\eeg_data_sample\\SAVEM_0004.vhdr"
-    devS = RawDeviceBuffer()
-    devS.configure(raw_file=rawF)
-    devS.outputs['signals'].configure(protocol='tcp', interface='127.0.0.1',transfermode='plaindata',)
-    devS.outputs['triggers'].configure(protocol='tcp', interface='127.0.0.1',transfermode='plaindata',)
-    devS.initialize()
 
     """
     Data Acquisition Node
@@ -48,12 +38,12 @@ def test_brainampsocket():
 
 
     trig.start()
-    devS.start()
+#   devS.start()
     view.start()
 
     def terminate():
         trig.stop()
-        devS.stop()
+#       devS.stop()
         view.stop()
 
     # start for a while
