@@ -15,7 +15,14 @@ _dtype_trigger = [('pos', 'int64'),
                 ]
 
 
-class TriggerHunterThread(QtCore.QThread):
+class EventPollerThread(QtCore.QThread):
+
+    QUIT_ZMQ = "0"
+    START_ZMQ = "1"
+    EVENT_ZMQ = "2"
+    RESULT_ZMQ = "4"
+    OK_ZMQ = "5"
+
     def __init__(self, outputs, host, port, parent=None):
         QtCore.QThread.__init__(self)
         self.outputs = outputs
@@ -23,56 +30,120 @@ class TriggerHunterThread(QtCore.QThread):
         self.addr = "tcp://{}:{}".format(host, port)
 
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.PULL)
+        self.socket = self.context.socket(zmq.REP)
         self.socket.bind(self.addr)
         
-        self.lock = Mutex()
-        self.running = True
+        self.mutex = Mutex()
 
+        # thread and zmq state
+        self.running = False 
+        self.isConnected = False
+        self.result_frame = None
+
+        self.request, self.content = None, None
         self.current_pos = 0
-            
-    def run(self):
-        # dump message in the queue
-        while True:
-            try:
-                dump = self.socket.recv(zmq.NOBLOCK)
-            except zmq.ZMQError:
-                break
+        self.reset()
+        
 
-        while self.running:
-            # Wait for next triggers from client
+    def run(self):
+        self.running = True
+        while True:
+            with self.mutex:
+                if not self.running:
+                    break
+
             try:
                 msg = self.socket.recv(zmq.NOBLOCK)
-                msg = msg.decode().split("/")
-                eventTime = (float)(msg[0])
-                label = (int)(msg[1])
+                
+                self.request, self.content = msg.decode().split("|")
+                
+                if (self.request == self.QUIT_ZMQ):
+                    self.socket.send_string(self.OK_ZMQ)
+                    self.isConnected = False
+                    self.reset()
+                    print("disconnected")
 
-                # filter only triggers needed
-                if ( 1 <= label <= 9 ):
-                    # check latency
-                    posixtime = time.time() * 1000
-                    latency = posixtime - eventTime
-                    # print( "time : {}, label : {} -> latency({}ms)".format(eventTime, label, int(latency)))
+                elif (self.request == self.START_ZMQ):
+                    self.socket.send_string(self.START_ZMQ)
+                    self.isConnected = True
+                    print("connect with : ", self.addr)
 
-                    nb_marker = 1
-                    markers = np.empty((nb_marker,), dtype=_dtype_trigger)
-                    markers['pos'][0] = self.current_pos
-                    markers['points'][0] = 0
-                    markers['channel'][0] = 0
-                    markers['type'][0] = b'Stimulus'
-                    markers['description'][0] = "S  {}".format(label).encode("utf-8")
-                    # print(markers)
-                    self.outputs['triggers'].send(markers, index=nb_marker)
+                elif (self.request == self.EVENT_ZMQ and self.isConnected):
+                    self.socket.send_string(self.OK_ZMQ)
+                    self.new_event()
+
+                elif (self.request == self.RESULT_ZMQ and self.isConnected):
+                    self.wait_result()
+                    if not (self.result_frame == None):
+                        print("result : ", self.result_frame)
+                        self.socket.send_string(self.result_frame)
+                    else:
+                        print("No Result")
+                        self.socket.send_string(self.QUIT_ZMQ)
+                    self.reset()
+
             except zmq.ZMQError:
                 pass
+            
+
+    
+    def new_event(self):
+        # check latency
+        msg_data = self.content.split("/")
+
+        eventTime = (float)(msg_data[0].replace(',','.'))
+        eventId = (int)(msg_data[1])
+
+        posixtime = time.time() * 1000
+        latency = posixtime - eventTime
+        # print( "time : {}, eventId : {} -> latency({}ms)".format(eventTime,
+        #     eventId, int(latency)))
+    
+        nb_marker = 1
+        markers = np.empty((nb_marker,), dtype=_dtype_trigger)
+        markers['pos'][0] = self.current_pos
+        markers['points'][0] = 0
+        markers['channel'][0] = 0
+        markers['type'][0] = b'Stimulus'
+        markers['description'][0] = "S  {}".format(eventId).encode("utf-8")
+        print(markers, "latency : ", latency)
+
+        self.outputs['triggers'].send(markers, index=nb_marker)
+
+    def wait_result(self):
+        # TODO ???? NOT SURE IT WORKING
+        
+        repeat = 10
+        counter = 0
+        shift = 100
+        while(self.result_frame == None and counter < 10):
+            print("sleep {}ms until new result check \
+                    ({}/{})".format(shift,counter+1,repeat))
+            self.msleep(shift)
+            counter += 1
+
+    
+    def set_current_pos(self, ptr):
+        with self.mutex:
+            self.current_pos = ptr
+
+    def set_result_frame(self, frame):
+        with self.mutex:
+            self.result_frame = frame
+    
+    def get_request(self):
+        with self.mutex:
+            return self.request, self.content
+
+    def reset(self):
+        self.result_frame = None
 
     def stop(self):
-        with self.lock:
+        with self.mutex:
             self.running = False
-
             self.socket.disconnect(self.addr)
 
-class TriggerHunter(Node):
+class EventPoller(Node):
 
     _input_specs = {'signals': dict(streamtype='signals')}
     
@@ -82,13 +153,14 @@ class TriggerHunter(Node):
     
     def __init__(self, **kargs):
         Node.__init__(self, **kargs)
+        
 
-    def _configure(self, host="127.0.0.1", port=5556):
+    def _configure(self, host="127.0.0.1", port=5555):
         self.host = host
         self.port = port
 
     def _initialize(self):
-        self._thread = TriggerHunterThread(self.outputs, self.host, self.port, parent=self)
+        self._thread = EventPollerThread(self.outputs, self.host, self.port, parent=self)
 
         self._poller = ThreadPollInput(self.inputs['signals'], return_data=True)
         self._poller.new_data.connect(self.on_new_chunk)
@@ -108,5 +180,13 @@ class TriggerHunter(Node):
         pass
 
     def on_new_chunk(self, ptr, data):
-        self._thread.current_pos = ptr
+        self._thread.set_current_pos(ptr)
 
+    def send_result(self, frame):
+        self._thread.set_result_frame(frame)
+    
+    def get_current_request(self):
+        return self._thread.get_request()
+
+    def reset(self):
+        self._thread.reset()
