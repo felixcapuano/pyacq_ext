@@ -61,12 +61,12 @@ class EventPollerThread(QtCore.QThread):
                     self.socket.send_string(self.OK_ZMQ)
                     self.isConnected = False
                     self.reset()
-                    print("disconnected")
+                    print("Stop acquiring")
 
                 elif (self.request == self.START_ZMQ):
                     self.socket.send_string(self.START_ZMQ)
                     self.isConnected = True
-                    print("connect with : ", self.addr)
+                    print("Acquiring on : ", self.addr)
 
                 elif (self.request == self.EVENT_ZMQ and self.isConnected):
                     self.socket.send_string(self.OK_ZMQ)
@@ -75,7 +75,7 @@ class EventPollerThread(QtCore.QThread):
                 elif (self.request == self.RESULT_ZMQ and self.isConnected):
                     self.wait_result()
                     if not (self.result_frame == None):
-                        print("result : ", self.result_frame)
+                        print("Sending result")
                         self.socket.send_string(self.result_frame)
                     else:
                         print("No Result")
