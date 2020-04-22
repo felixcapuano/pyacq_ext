@@ -16,7 +16,12 @@ _dtype_trigger = [('pos', 'int64'),
 
 
 class EventPollerThread(QtCore.QThread):
+    """Communicate with the MYB via ZeroMQ.
 
+    This is a thread of communication beetween the myb game and pyacq.
+    The communication architecture is request-response.
+    
+    """
     QUIT_ZMQ = "0"
     START_ZMQ = "1"
     EVENT_ZMQ = "2"
@@ -24,6 +29,7 @@ class EventPollerThread(QtCore.QThread):
     OK_ZMQ = "5"
 
     def __init__(self, outputs, host, port, parent=None):
+        """Initialize the socket"""
         QtCore.QThread.__init__(self)
         self.outputs = outputs
 
@@ -46,6 +52,33 @@ class EventPollerThread(QtCore.QThread):
         
 
     def run(self):
+        """The thread core wait request from the game and send back response
+
+        The frame patern is : <request_type>|<content>
+
+        There is 5 types of <request_type> :
+
+        - **QUIT (value = 0)** received when communication has to stop
+        - **START (value = 1)** received when communication is ready to start
+        - **EVENT (value = 2)** just received a new event, content is type
+          <event_time>/<event_id>
+        - **RESULT (value = 4)** received when myb game is ready to receive
+          a result, content is type : <nb_total_event>
+        - **OK (value = 5)** receive when all is fine
+
+        Communication sample :
+
+        | [MYB] START
+        | [PYACQ] OK
+        | [MYB] EVENT
+        | [PYACQ] OK
+        | [MYB] EVENT
+        | [PYACQ] OK
+        |     ....
+        | [MYB] RESULT
+        | [PYACQ] "__/__ .... __/__" (result frame)
+
+        """
         self.running = True
         while True:
             with self.mutex:
@@ -88,6 +121,7 @@ class EventPollerThread(QtCore.QThread):
 
     
     def new_event(self):
+        """Call when event is sended by the game"""
         # check latency
         msg_data = self.content.split("/")
 
@@ -110,12 +144,13 @@ class EventPollerThread(QtCore.QThread):
 
         self.outputs['triggers'].send(markers, index=nb_marker)
 
-    def wait_result(self):
-        # TODO ???? NOT SURE IT WORKING
+    def wait_result(self, repeat=10, counter=0, shift=100):
+        """Call when result is waited by the game
+
+        This function pause the thread when the result is processed.
+        and check if no result has ready to send during a period of time.
+        """
         
-        repeat = 10
-        counter = 0
-        shift = 100
         while(self.result_frame == None and counter < 10):
             print("sleep {}ms until new result check \
                     ({}/{})".format(shift,counter+1,repeat))
@@ -124,27 +159,40 @@ class EventPollerThread(QtCore.QThread):
 
     
     def set_current_pos(self, ptr):
+        """Use to syncronise the EEG stream with game event"""
         with self.mutex:
             self.current_pos = ptr
 
     def set_result_frame(self, frame):
+        """Use to set the result when it's ready to send"""
         with self.mutex:
             self.result_frame = frame
     
     def get_request(self):
+        """Get the current request sender by the game"""
         with self.mutex:
             return self.request, self.content
 
     def reset(self):
+        """Use to reset the result frame"""
         self.result_frame = None
 
     def stop(self):
+        """Stop the thread"""
         with self.mutex:
             self.running = False
             self.socket.disconnect(self.addr)
 
 class EventPoller(Node):
+    """This node is use to communicate with MYB games
 
+    This node have 1 signal input and 1 triggers output.
+    The node detect events from the MYB game using socket (zeromq)
+    and convert them to pyacq event stream.
+    The node have two poller: the first wait a signal and the second listen
+    a tcp address to etablish communication with MYB game.
+    
+    """
     _input_specs = {'signals': dict(streamtype='signals')}
     
     _output_specs = {'triggers': dict(streamtype = 'event', dtype = _dtype_trigger,
@@ -183,9 +231,16 @@ class EventPoller(Node):
         self._thread.set_current_pos(ptr)
 
     def send_result(self, frame):
+        """Set the formatted result ready to send
+
+        You can set the result to send with this method.
+        If the game is asking a result the node will send this 
+        result then this result will be reset.
+        """
         self._thread.set_result_frame(frame)
     
     def get_current_request(self):
+        """Get the current request send by the MYB game"""
         return self._thread.get_request()
 
     def reset(self):
