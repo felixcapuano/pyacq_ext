@@ -23,6 +23,8 @@ class EventPollerThread(QtCore.QThread):
     RESULT_ZMQ = "4"
     OK_ZMQ = "5"
 
+    stop_communicate = QtCore.pyqtSignal()
+
     def __init__(self, outputs, host, port, parent=None):
         QtCore.QThread.__init__(self)
         self.outputs = outputs
@@ -40,7 +42,6 @@ class EventPollerThread(QtCore.QThread):
         self.isConnected = False
         self.result_frame = None
 
-        self.request, self.content = None, None
         self.current_pos = 0
         self.reset()
         
@@ -111,14 +112,13 @@ class EventPollerThread(QtCore.QThread):
         self.outputs['triggers'].send(markers, index=nb_marker)
 
     def wait_result(self):
-        # TODO ???? NOT SURE IT WORKING
         
         repeat = 10
         counter = 0
         shift = 100
         while(self.result_frame == None and counter < 10):
-            print("sleep {}ms until new result check \
-                    ({}/{})".format(shift,counter+1,repeat))
+            print("sleep {}ms until new result check" \
+                    "({}/{})".format(shift,counter+1,repeat))
             self.msleep(shift)
             counter += 1
 
@@ -136,7 +136,10 @@ class EventPollerThread(QtCore.QThread):
             return self.request, self.content
 
     def reset(self):
-        self.result_frame = None
+        with self.mutex:
+            self.result_frame = None
+            self.request, self.content = None, None
+            self.stop_communicate.emit()
 
     def stop(self):
         with self.mutex:
@@ -160,18 +163,18 @@ class EventPoller(Node):
         self.port = port
 
     def _initialize(self):
-        self._thread = EventPollerThread(self.outputs, self.host, self.port, parent=self)
+        self.sender_poller = EventPollerThread(self.outputs, self.host, self.port, parent=self)
 
         self._poller = ThreadPollInput(self.inputs['signals'], return_data=True)
         self._poller.new_data.connect(self.on_new_chunk)
 
     def _start(self):
         self._poller.start()
-        self._thread.start()
+        self.sender_poller.start()
 
     def _stop(self):
-        self._thread.stop()
-        self._thread.wait()
+        self.sender_poller.stop()
+        self.sender_poller.wait()
 
         self._poller.stop()
         self._poller.wait()
@@ -180,13 +183,4 @@ class EventPoller(Node):
         pass
 
     def on_new_chunk(self, ptr, data):
-        self._thread.set_current_pos(ptr)
-
-    def send_result(self, frame):
-        self._thread.set_result_frame(frame)
-    
-    def get_current_request(self):
-        return self._thread.get_request()
-
-    def reset(self):
-        self._thread.reset()
+        self.sender_poller.set_current_pos(ptr)
