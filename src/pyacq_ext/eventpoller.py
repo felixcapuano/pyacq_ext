@@ -145,16 +145,12 @@ class EventPollerThread(QtCore.QThread):
 
         self.outputs['triggers'].send(markers, index=nb_marker)
 
-<<<<<<< HEAD:src/pyacq_ext/triggerhunter.py
-    def wait_result(self):
-=======
     def wait_result(self, repeat=10, counter=0, shift=100):
         """Call when result is waited by the game
 
         This function pause the thread when the result is processed.
         and check if no result has ready to send during a period of time.
         """
->>>>>>> e569781826da4a6b142048f4b9eb990b0076709d:src/pyacq_ext/eventpoller.py
         
         while(self.result_frame == None and counter < 10):
             print("sleep {}ms until new result check" \
@@ -179,15 +175,8 @@ class EventPollerThread(QtCore.QThread):
             return self.request, self.content
 
     def reset(self):
-<<<<<<< HEAD:src/pyacq_ext/triggerhunter.py
-        with self.mutex:
-            self.result_frame = None
-            self.request, self.content = None, None
-            self.stop_communicate.emit()
-=======
         """Use to reset the result frame"""
         self.result_frame = None
->>>>>>> e569781826da4a6b142048f4b9eb990b0076709d:src/pyacq_ext/eventpoller.py
 
     def stop(self):
         """Stop the thread"""
@@ -240,9 +229,6 @@ class EventPoller(Node):
         pass
 
     def on_new_chunk(self, ptr, data):
-<<<<<<< HEAD:src/pyacq_ext/triggerhunter.py
-        self.sender_poller.set_current_pos(ptr)
-=======
         self._thread.set_current_pos(ptr)
 
     def send_result(self, frame):
@@ -260,4 +246,3 @@ class EventPoller(Node):
 
     def reset(self):
         self._thread.reset()
->>>>>>> e569781826da4a6b142048f4b9eb990b0076709d:src/pyacq_ext/eventpoller.py
