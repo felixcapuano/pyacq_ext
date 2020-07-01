@@ -229,7 +229,7 @@ class EventPoller(Node):
         pass
 
     def on_new_chunk(self, ptr, data):
-        self._thread.set_current_pos(ptr)
+        self.sender_poller.set_current_pos(ptr)
 
     def send_result(self, frame):
         """Set the formatted result ready to send
@@ -238,11 +238,11 @@ class EventPoller(Node):
         If the game is asking a result the node will send this 
         result then this result will be reset.
         """
-        self._thread.set_result_frame(frame)
+        self.sender_poller.set_result_frame(frame)
     
     def get_current_request(self):
         """Get the current request send by the MYB game"""
-        return self._thread.get_request()
+        return self.sender_poller.get_request()
 
     def reset(self):
-        self._thread.reset()
+        self.sender_poller.reset()
