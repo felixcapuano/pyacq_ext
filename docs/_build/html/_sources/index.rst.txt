@@ -16,7 +16,7 @@ for `pyacq`_.
    
   brainvisionlistener
   epochermultilabel
-  triggerhunter
+  eventpoller
   rawbufferdevice
 
 
