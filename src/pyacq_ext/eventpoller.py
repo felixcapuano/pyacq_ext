@@ -7,6 +7,8 @@ from pyqtgraph.util.mutex import Mutex
 
 from pyacq.core import Node, ThreadPollInput
 
+from datetime import datetime
+
 _dtype_trigger = [('pos', 'int64'),
                 ('points', 'int64'),
                 ('channel', 'int64'),
@@ -27,6 +29,8 @@ class EventPollerThread(QtCore.QThread):
     EVENT_ZMQ = "2"
     RESULT_ZMQ = "4"
     OK_ZMQ = "5"
+
+    START_CALIBRATION_ZMQ = "6"
 
     stop_communicate = QtCore.pyqtSignal()
 
@@ -51,6 +55,15 @@ class EventPollerThread(QtCore.QThread):
         self.current_pos = 0
         self.reset()
         
+        self.posXTime0 = 0
+        self.samplingRate = 0
+        
+        now = datetime.now()
+        dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
+        filename  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/Trig-" +  dt_string + ".txt"
+        self.TrigFile = open(filename, "a+")
+
+        self.calibrationMode = False
 
     def run(self):
         """The thread core wait request from the game and send back response
@@ -116,11 +129,15 @@ class EventPollerThread(QtCore.QThread):
                         self.socket.send_string(self.QUIT_ZMQ)
                     self.reset()
 
+                elif (self.request == self.START_CALIBRATION_ZMQ and self.isConnected):
+                    self.socket.send_string(self.START_CALIBRATION_ZMQ)
+                    self.calibrationMode = True
+
             except zmq.ZMQError:
                 pass
             
 
-    
+
     def new_event(self):
         """Call when event is sended by the game"""
         # check latency
@@ -131,17 +148,27 @@ class EventPollerThread(QtCore.QThread):
 
         posixtime = time.time() * 1000
         latency = posixtime - eventTime
+        print("EventTime : ", eventTime )
+        print("EventId : ", eventId )
+
         # print( "time : {}, eventId : {} -> latency({}ms)".format(eventTime,
         #     eventId, int(latency)))
     
         nb_marker = 1
         markers = np.empty((nb_marker,), dtype=_dtype_trigger)
-        markers['pos'][0] = self.current_pos
+        #markers['pos'][0] = self.current_pos
+        print("posXTime0 : ", self.posXTime0 )
+        pos_curr= round(((eventTime-self.posXTime0)*1000)/self.samplingRate)
+        
+        
+        self.TrigFile.write(str(pos_curr)  + '\n')
+        
+        markers['pos'][0] = pos_curr
         markers['points'][0] = 0
         markers['channel'][0] = 0
         markers['type'][0] = b'Stimulus'
         markers['description'][0] = "S  {}".format(eventId).encode("utf-8")
-        print(markers, "latency : ", latency)
+        #print(markers, "latency : ", latency)
 
         self.outputs['triggers'].send(markers, index=nb_marker)
 
@@ -181,6 +208,7 @@ class EventPollerThread(QtCore.QThread):
     def stop(self):
         """Stop the thread"""
         with self.mutex:
+            self.TrigFile.close()
             self.running = False
             self.socket.disconnect(self.addr)
 
@@ -199,6 +227,8 @@ class EventPoller(Node):
     _output_specs = {'triggers': dict(streamtype = 'event', dtype = _dtype_trigger,
                                                 shape = (-1,)),
                                 }
+                                
+    
     
     def __init__(self, **kargs):
         Node.__init__(self, **kargs)
@@ -213,6 +243,14 @@ class EventPoller(Node):
 
         self._poller = ThreadPollInput(self.inputs['signals'], return_data=True)
         self._poller.new_data.connect(self.on_new_chunk)
+        now = datetime.now()
+        # dd/mm/YY H:M:S
+        dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
+        filename  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/Data-" +  dt_string + ".txt"
+        filenamePosXData  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/PosXData-" +  dt_string + ".txt"
+        self.dataFile = open(filename, "a+")
+        self.posXDataFile = open(filenamePosXData, "a+")
+        self.sender_poller.samplingRate = self._poller.input_stream().params['sample_rate']
 
     def _start(self):
         self._poller.start()
@@ -224,12 +262,49 @@ class EventPoller(Node):
 
         self._poller.stop()
         self._poller.wait()
-
+        self.dataFile.close()
+        self.posXDataFile.close()
     def _close(self):
         pass
 
     def on_new_chunk(self, ptr, data):
         self.sender_poller.set_current_pos(ptr)
+        if (ptr==data.shape[0]):
+            
+            self.ArrayPtr = []
+            self.ArrayPtr.append(ptr)
+            self.ArrayposiXTime = []
+            self.ArrayposiXTime.append(0)
+            self.PosiXTime1stChunk =time.time() * 1000
+            
+            chunkDuration = data.shape[0] * 1000 /  self.sender_poller.samplingRate 
+            #print("chunkDuration : \n", chunkDuration)
+            #print("ptr : \n", ptr)
+            
+            self.sender_poller.posXTime0 = (time.time() * 1000) - chunkDuration
+            #print("posXTime0 : \n", self.sender_poller.posXTime0 )
+            
+        if ((ptr>data.shape[0]) and (ptr<(60000* 1000 /  self.sender_poller.samplingRate ))  ):
+            self.ArrayPtr.append(ptr)
+            self.ArrayposiXTime.append((time.time() * 1000) - self.PosiXTime1stChunk)
+             
+            if ((ptr%(200 * 1000 /  self.sender_poller.samplingRate )) ==0 ):
+                p = np.polyfit(np.array( self.ArrayposiXTime ), np.array(self.ArrayPtr),1)
+                #print("Delay 1st chunk: \n ",p[1])
+                self.sender_poller.posXTime0 =self.PosiXTime1stChunk - p[1]
+                #print("posXTime0 : \n ", self.sender_poller.posXTime0)
+                
+                
+        
+            
+            
+        datamatrix = np.matrix(data)
+        for line in datamatrix:
+            np.savetxt(self.dataFile, line, fmt='%f')
+        
+        #print("ptr : \n", ptr)
+        #print("time : \n", str(time.time() * 1000))
+        self.posXDataFile.write(str(time.time() * 1000)  + '\n')
 
     def send_result(self, frame):
         """Set the formatted result ready to send
