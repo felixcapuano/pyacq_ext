@@ -9,6 +9,8 @@ from pyacq.core import Node, ThreadPollInput
 
 from datetime import datetime
 
+from .helper import Helper
+
 _dtype_trigger = [('pos', 'int64'),
                 ('points', 'int64'),
                 ('channel', 'int64'),
@@ -31,14 +33,16 @@ class EventPollerThread(QtCore.QThread):
     OK_ZMQ = "5"
 
     START_CALIBRATION_ZMQ = "6"
+    RESET_ZMQ = "7"
+
+
 
     stop_communicate = QtCore.pyqtSignal()
 
-    def __init__(self, outputs, host, port, parent=None):
+    def __init__(self, outputs, host, port, helper, parent=None):
         """Initialize the socket"""
         QtCore.QThread.__init__(self)
         self.outputs = outputs
-
         self.addr = "tcp://{}:{}".format(host, port)
 
         self.context = zmq.Context()
@@ -64,6 +68,7 @@ class EventPollerThread(QtCore.QThread):
         self.TrigFile = open(filename, "a+")
 
         self.calibrationMode = False
+        self.helper = helper
 
     def run(self):
         """The thread core wait request from the game and send back response
@@ -132,6 +137,11 @@ class EventPollerThread(QtCore.QThread):
                 elif (self.request == self.START_CALIBRATION_ZMQ and self.isConnected):
                     self.socket.send_string(self.START_CALIBRATION_ZMQ)
                     self.calibrationMode = True
+
+                elif(self.request == self.RESET_ZMQ and self.isConnected):
+                    self.socket.send_string(self.RESET_ZMQ)
+                    self.helper.resetSignal.emit()
+
 
             except zmq.ZMQError:
                 pass
@@ -239,7 +249,8 @@ class EventPoller(Node):
         self.port = port
 
     def _initialize(self):
-        self.sender_poller = EventPollerThread(self.outputs, self.host, self.port, parent=self)
+        self.helper = Helper()
+        self.sender_poller = EventPollerThread(self.outputs, self.host, self.port, self.helper, parent=self)
 
         self._poller = ThreadPollInput(self.inputs['signals'], return_data=True)
         self._poller.new_data.connect(self.on_new_chunk)
