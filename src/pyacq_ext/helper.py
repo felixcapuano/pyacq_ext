@@ -4,4 +4,4 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QObject, pyqtSignal
 
 class Helper(QObject):
-    resetSignal = pyqtSignal()
+    resetSignal = pyqtSignal(bool)

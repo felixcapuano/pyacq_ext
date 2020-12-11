@@ -34,6 +34,7 @@ class EventPollerThread(QtCore.QThread):
 
     START_CALIBRATION_ZMQ = "6"
     RESET_ZMQ = "7"
+    CALIBRATION_CHECK = "8"
 
 
 
@@ -136,11 +137,17 @@ class EventPollerThread(QtCore.QThread):
 
                 elif (self.request == self.START_CALIBRATION_ZMQ and self.isConnected):
                     self.socket.send_string(self.START_CALIBRATION_ZMQ)
-                    self.calibrationMode = True
+                    self.helper.resetSignal.emit(True)
 
                 elif(self.request == self.RESET_ZMQ and self.isConnected):
                     self.socket.send_string(self.RESET_ZMQ)
-                    self.helper.resetSignal.emit()
+                    self.helper.resetSignal.emit(False)
+
+                elif(self.request == self.CALIBRATION_CHECK and self.isConnected):
+                    if(not self.calibrationMode):
+                        self.socket.send_string(self.CALIBRATION_CHECK)
+                    else:
+                        self.socket.send_string("-1")
 
 
             except zmq.ZMQError:
