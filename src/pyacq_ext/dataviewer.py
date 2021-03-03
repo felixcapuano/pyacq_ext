@@ -26,7 +26,7 @@ class DataViewer(Node):
     def _start(self):
         self.poller1.start()
         self.poller2.start()
-        
+
     def data1_received(self, ptr, data):
         if ptr != 0:
             print("channel 1 pos: {}, label: {}".format(data[0][0], data[0][4]))

@@ -63,10 +63,10 @@ class EventPollerThread(QtCore.QThread):
         self.posXTime0 = 0
         self.samplingRate = 0
         
-        now = datetime.now()
-        dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
-        filename  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/Trig-" +  dt_string + ".txt"
-        self.TrigFile = open(filename, "a+")
+        #now = datetime.now()
+        #dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
+        #filename  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/Trig-" +  dt_string + ".txt"
+        #self.TrigFile = open(filename, "a+")
 
         self.calibrationMode = False
         self.helper = helper
@@ -178,7 +178,7 @@ class EventPollerThread(QtCore.QThread):
         pos_curr= round(((eventTime-self.posXTime0)*1000)/self.samplingRate)
         
         
-        self.TrigFile.write(str(pos_curr)  + '\n')
+        #self.TrigFile.write(str(pos_curr)  + '\n')
         
         markers['pos'][0] = pos_curr
         markers['points'][0] = 0
@@ -225,7 +225,7 @@ class EventPollerThread(QtCore.QThread):
     def stop(self):
         """Stop the thread"""
         with self.mutex:
-            self.TrigFile.close()
+            #self.TrigFile.close()
             self.running = False
             self.socket.disconnect(self.addr)
 
@@ -261,13 +261,13 @@ class EventPoller(Node):
 
         self._poller = ThreadPollInput(self.inputs['signals'], return_data=True)
         self._poller.new_data.connect(self.on_new_chunk)
-        now = datetime.now()
+        #now = datetime.now()
         # dd/mm/YY H:M:S
-        dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
-        filename  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/Data-" +  dt_string + ".txt"
-        filenamePosXData  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/PosXData-" +  dt_string + ".txt"
-        self.dataFile = open(filename, "a+")
-        self.posXDataFile = open(filenamePosXData, "a+")
+        #dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
+        #filename  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/Data-" +  dt_string + ".txt"
+        #filenamePosXData  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/PosXData-" +  dt_string + ".txt"
+        #self.dataFile = open(filename, "a+")
+        #self.posXDataFile = open(filenamePosXData, "a+")
         self.sender_poller.samplingRate = self._poller.input_stream().params['sample_rate']
 
     def _start(self):
@@ -280,8 +280,8 @@ class EventPoller(Node):
 
         self._poller.stop()
         self._poller.wait()
-        self.dataFile.close()
-        self.posXDataFile.close()
+        #self.dataFile.close()
+        #self.posXDataFile.close()
     def _close(self):
         pass
 
@@ -316,13 +316,13 @@ class EventPoller(Node):
         
             
             
-        datamatrix = np.matrix(data)
-        for line in datamatrix:
-            np.savetxt(self.dataFile, line, fmt='%f')
+        #datamatrix = np.matrix(data)
+        #for line in datamatrix:
+            #np.savetxt(self.dataFile, line, fmt='%f')
         
         #print("ptr : \n", ptr)
         #print("time : \n", str(time.time() * 1000))
-        self.posXDataFile.write(str(time.time() * 1000)  + '\n')
+        #self.posXDataFile.write(str(time.time() * 1000)  + '\n')
 
     def send_result(self, frame):
         """Set the formatted result ready to send
