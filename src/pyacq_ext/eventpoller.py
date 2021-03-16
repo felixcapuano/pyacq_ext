@@ -63,7 +63,7 @@ class EventPollerThread(QtCore.QThread):
         
         self.posXTime0 = 0
         self.samplingRate = 0
-        
+
         #now = datetime.now()
         #dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
         #filename  = "C:/Users/AlexM/Documents/Projets/Python/pybart/log/Trig-" +  dt_string + ".txt"
@@ -127,14 +127,15 @@ class EventPollerThread(QtCore.QThread):
                     self.new_event()
 
                 elif (self.request == self.RESULT_ZMQ and self.isConnected):
-                    self.wait_result()
-                    if not (self.result_frame == None):
-                        print("Sending result")
-                        self.socket.send_string(self.result_frame)
-                    else:
-                        print("No Result")
-                        self.socket.send_string(self.QUIT_ZMQ)
-                    self.reset()
+                    self.helper.resultSignal.emit()
+                    #self.wait_result()
+                    #if not (self.result_frame == None):
+                        #print("Sending result")
+                        #self.socket.send_string(self.result_frame)
+                    #else:
+                        #print("No Result")
+                        #self.socket.send_string(self.QUIT_ZMQ)
+                    #self.reset()
 
                 elif (self.request == self.START_CALIBRATION_ZMQ and self.isConnected):
                     self.socket.send_string(self.START_CALIBRATION_ZMQ)
@@ -215,6 +216,13 @@ class EventPollerThread(QtCore.QThread):
         """Use to set the result when it's ready to send"""
         with self.mutex:
             self.result_frame = frame
+            if not (self.result_frame == None):
+                print("Sending result")
+                self.socket.send_string(self.result_frame)
+            else:
+                print("No Result")
+                self.socket.send_string(self.QUIT_ZMQ)
+            self.reset()
     
     def get_request(self):
         """Get the current request sender by the game"""
