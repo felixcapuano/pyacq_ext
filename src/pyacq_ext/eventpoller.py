@@ -35,6 +35,7 @@ class EventPollerThread(QtCore.QThread):
     START_CALIBRATION_ZMQ = "6"
     RESET_ZMQ = "7"
     CALIBRATION_CHECK = "8"
+    TRIGGERCOUNT_ZMQ = "9"
 
 
 
@@ -149,6 +150,8 @@ class EventPollerThread(QtCore.QThread):
                     else:
                         self.socket.send_string("-1")
 
+                elif(self.request == self.TRIGGERCOUNT_ZMQ and self.isConnected):
+                    self.helper.triggerCountSignal.emit(int(self.content))
 
             except zmq.ZMQError:
                 pass
