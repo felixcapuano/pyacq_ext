@@ -5,4 +5,4 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 class Helper(QObject):
     resetSignal = pyqtSignal(bool)
-    triggerCountSignal = pyqtSignal(int)
+    triggerSetupSignal = pyqtSignal(string)
