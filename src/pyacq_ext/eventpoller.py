@@ -48,7 +48,8 @@ class EventPollerThread(QtCore.QThread):
         self.addr = "tcp://{}:{}".format(host, port)
 
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
+        #self.socket = self.context.socket(zmq.REP)
+        self.socket = self.context.socket(zmq.PAIR)
         self.socket.bind(self.addr)
         
         self.mutex = Mutex()
@@ -110,7 +111,6 @@ class EventPollerThread(QtCore.QThread):
                 msg = self.socket.recv(zmq.NOBLOCK)
                 
                 self.request, self.content = msg.decode().split("|")
-                
                 if (self.request == self.QUIT_ZMQ):
                     self.socket.send_string(self.OK_ZMQ)
                     self.isConnected = False
@@ -152,7 +152,8 @@ class EventPollerThread(QtCore.QThread):
                         self.socket.send_string("-1")
 
                 elif(self.request == self.TRIGGERSETUP_ZMQ and self.isConnected):
-                    self.helper.triggerCountSignal.emit(self.content)
+                    self.socket.send_string(self.QUIT_ZMQ)
+                    self.helper.triggerSetupSignal.emit(self.content)
 
             except zmq.ZMQError:
                 pass
@@ -165,12 +166,12 @@ class EventPollerThread(QtCore.QThread):
         msg_data = self.content.split("/")
 
         eventTime = (float)(msg_data[0].replace(',','.'))
-        eventId = (int)(msg_data[1])
+        eventId = msg_data[1]
 
         posixtime = time.time() * 1000
         latency = posixtime - eventTime
-        print("EventTime : ", eventTime )
-        print("EventId : ", eventId )
+        #print("EventTime : ", eventTime )
+        #print("EventId : ", eventId )
 
         # print( "time : {}, eventId : {} -> latency({}ms)".format(eventTime,
         #     eventId, int(latency)))
