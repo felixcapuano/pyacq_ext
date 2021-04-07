@@ -10,7 +10,7 @@ from pyqtgraph.util.mutex import Mutex
 class ThreadPollInputUntilPosWaited(ThreadPollInput):
     """Thread waiting a futur pos in a stream."""
     
-    pos_reached = QtCore.pyqtSignal(int, str)
+    pos_reached = QtCore.pyqtSignal(int, str, str)
 
     def __init__(self, input_stream,  **kargs):
         ThreadPollInput.__init__(self, input_stream, **kargs)
@@ -18,8 +18,8 @@ class ThreadPollInputUntilPosWaited(ThreadPollInput):
         self.locker = Mutex()
         self.pos_waited_list = []
 
-    def append_limit(self, label, pos_waited):
-        self.pos_waited_list.append((label, pos_waited))
+    def append_limit(self, label, additionalInformation, pos_waited):
+        self.pos_waited_list.append((label, additionalInformation, pos_waited))
 
     def reset(self):
         with self.locker:
@@ -31,9 +31,9 @@ class ThreadPollInputUntilPosWaited(ThreadPollInput):
             if len(self.pos_waited_list) == 0:
                 return
 
-            for pos_waited, label in self.pos_waited_list:
+            for pos_waited, label, additionalInformation in self.pos_waited_list:
                 if pos >= pos_waited:
-                    self.pos_reached.emit(pos_waited, label)
+                    self.pos_reached.emit(pos_waited, label, additionalInformation)
             self.pos_waited_list = [
                 pos_waited for pos_waited in self.pos_waited_list if pos < pos_waited[0]]
 
@@ -68,7 +68,7 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
         'S  7': _params_ex,
     }
 
-    new_chunk = QtCore.pyqtSignal(str, np.ndarray)
+    new_chunk = QtCore.pyqtSignal(str, str, np.ndarray)
 
     def __init__(self, parent=None, **kargs):
         QtCore.QObject.__init__(self, parent)
@@ -135,14 +135,14 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
         pass
 
     def on_new_trig(self, trig_num, trig_indexes):
-        for pos, pts, channel, description, label in trig_indexes:
+        for pos, pts, channel, description, label, additionalInformation in trig_indexes:
             label = label.decode()
+            additionalInformation = additionalInformation.decode()
             if label in self.parameters.keys():
                 pos_waited = pos + self.parameters[label]['right_limit']
-                self.pos_waiter.append_limit(pos_waited, label)
-                
-    def on_pos_reached(self, pos, label):
+                self.pos_waiter.append_limit(pos_waited, label, additionalInformation)
 
+    def on_pos_reached(self, pos, label, additionalInformation):
         size_stock = self.parameters[label]['size']
         epoch = self.inputs['signals'].get_data(
             pos - size_stock, pos).transpose()
@@ -155,7 +155,7 @@ class EpocherMultiLabel(Node,  QtCore.QObject):
 
         for label in self.epoch_storage.keys():
             if self.epoch_storage[label]['weight'] >= self.parameters[label]['max_stock']:
-                self.new_chunk.emit(label, self.epoch_storage[label]['stock'])
+                self.new_chunk.emit(label, additionalInformation, self.epoch_storage[label]['stock'])
                 self.reset_stock(label)
 
     def configure_triggers_parameters(self):

@@ -15,7 +15,8 @@ _dtype_trigger = [('pos', 'int64'),
                 ('points', 'int64'),
                 ('channel', 'int64'),
                 ('type', 'S16'),  # TODO check size
-                ('description', 'S16'),  # TODO check size
+                ('description', 'S100'),  # TODO check size
+                  ('additionalInformation', 'S100'),
                 ]
 
 
@@ -73,6 +74,9 @@ class EventPollerThread(QtCore.QThread):
         self.calibrationMode = False
         self.helper = helper
 
+        self.pingSent = False
+
+
     def run(self):
         """The thread core wait request from the game and send back response
 
@@ -108,22 +112,30 @@ class EventPollerThread(QtCore.QThread):
                     break
 
             try:
+                if self.pingSent is False:
+                    self.pingSent = True
+                    self.socket.send_string(self.OK_ZMQ + "|")  # Ping sent to let Unity know that framework is started
+
+
                 msg = self.socket.recv(zmq.NOBLOCK)
                 
                 self.request, self.content = msg.decode().split("|")
                 if (self.request == self.QUIT_ZMQ):
-                    self.socket.send_string(self.OK_ZMQ)
+                    response = self.request + "|" + self.content
+                    self.socket.send_string(response)
                     self.isConnected = False
                     self.reset()
                     print("Stop acquiring")
 
                 elif (self.request == self.START_ZMQ):
-                    self.socket.send_string(self.START_ZMQ)
+                    response = self.request + "|" + self.content
+                    self.socket.send_string(response)
                     self.isConnected = True
                     print("Acquiring on : ", self.addr)
 
                 elif (self.request == self.EVENT_ZMQ and self.isConnected):
-                    self.socket.send_string(self.OK_ZMQ)
+                    response = self.request + "|" + self.content
+                    self.socket.send_string(response)
                     self.new_event()
 
                 elif (self.request == self.RESULT_ZMQ and self.isConnected):
@@ -138,21 +150,25 @@ class EventPollerThread(QtCore.QThread):
                     #self.reset()
 
                 elif (self.request == self.START_CALIBRATION_ZMQ and self.isConnected):
-                    self.socket.send_string(self.START_CALIBRATION_ZMQ)
+                    response = self.request + "|" + self.content
+                    self.socket.send_string(response)
                     self.helper.resetSignal.emit(True)
 
                 elif(self.request == self.RESET_ZMQ and self.isConnected):
-                    self.socket.send_string(self.RESET_ZMQ)
+                    response = self.request + "|" + self.content
+                    self.socket.send_string(response)
                     self.helper.resetSignal.emit(False)
 
                 elif(self.request == self.CALIBRATION_CHECK and self.isConnected):
                     if(not self.calibrationMode):
-                        self.socket.send_string(self.CALIBRATION_CHECK)
+                        response = self.request + "|" + self.content
+                        self.socket.send_string(response)
                     else:
-                        self.socket.send_string("-1")
+                        self.socket.send_string("-1") # TODO : ce message déconnectera unity et python, ce qui n'est pas forcément ce qu'on veut, faire en sorte qu'il indique seulement un fail de calibration
 
                 elif(self.request == self.TRIGGERSETUP_ZMQ and self.isConnected):
-                    self.socket.send_string(self.QUIT_ZMQ)
+                    response = self.request + "|" + self.content
+                    self.socket.send_string(response)
                     self.helper.triggerSetupSignal.emit(self.content)
 
             except zmq.ZMQError:
@@ -166,7 +182,12 @@ class EventPollerThread(QtCore.QThread):
         msg_data = self.content.split("/")
 
         eventTime = (float)(msg_data[0].replace(',','.'))
-        eventId = msg_data[1]
+
+        msg_dataTab = msg_data[1].split(';')
+        label = msg_dataTab[0]
+        additionalInformation = ""
+        for i in range(1, len(msg_dataTab)):
+            additionalInformation += msg_dataTab[i]
 
         posixtime = time.time() * 1000
         latency = posixtime - eventTime
@@ -189,7 +210,9 @@ class EventPollerThread(QtCore.QThread):
         markers['points'][0] = 0
         markers['channel'][0] = 0
         markers['type'][0] = b'Stimulus'
-        markers['description'][0] = "S  {}".format(eventId).encode("utf-8")
+        markers['description'][0] = "{}".format(label).encode("utf-8")
+        markers['additionalInformation'][0] = "{}".format(additionalInformation).encode("utf-8")
+
         #print(markers, "latency : ", latency)
 
         self.outputs['triggers'].send(markers, index=nb_marker)
