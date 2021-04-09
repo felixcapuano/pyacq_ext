@@ -27,16 +27,16 @@ class EventPollerThread(QtCore.QThread):
     The communication architecture is request-response.
     
     """
-    QUIT_ZMQ = "0"
-    START_ZMQ = "1"
-    EVENT_ZMQ = "2"
-    RESULT_ZMQ = "4"
-    OK_ZMQ = "5"
+    QUIT_ZMQ = "QUIT_ZMQ"
+    START_ZMQ = "START_ZMQ"
+    EVENT_ZMQ = "EVENT_ZMQ"
+    RESULT_ZMQ = "RESULT_ZMQ"
+    OK_ZMQ = "OK_ZMQ"
 
-    START_CALIBRATION_ZMQ = "6"
-    RESET_ZMQ = "7"
-    CALIBRATION_CHECK = "8"
-    TRIGGERSETUP_ZMQ = "9"
+    START_CALIBRATION_ZMQ = "START_CALIBRATION_ZMQ"
+    RESET_ZMQ = "RESET_ZMQ"
+    CALIBRATION_CHECK_ZMQ = "CALIBRATION_CHECK_ZMQ"
+    TRIGGER_SETUP_ZMQ = "TRIGGER_SETUP_ZMQ"
 
 
 
@@ -120,6 +120,7 @@ class EventPollerThread(QtCore.QThread):
                 msg = self.socket.recv(zmq.NOBLOCK)
                 
                 self.request, self.content = msg.decode().split("|")
+
                 if (self.request == self.QUIT_ZMQ):
                     response = self.request + "|" + self.content
                     self.socket.send_string(response)
@@ -153,20 +154,22 @@ class EventPollerThread(QtCore.QThread):
                     response = self.request + "|" + self.content
                     self.socket.send_string(response)
                     self.helper.resetSignal.emit(True)
+                    print("set calib mode")
+
 
                 elif(self.request == self.RESET_ZMQ and self.isConnected):
                     response = self.request + "|" + self.content
                     self.socket.send_string(response)
                     self.helper.resetSignal.emit(False)
 
-                elif(self.request == self.CALIBRATION_CHECK and self.isConnected):
-                    if(not self.calibrationMode):
-                        response = self.request + "|" + self.content
-                        self.socket.send_string(response)
-                    else:
-                        self.socket.send_string("-1") # TODO : ce message déconnectera unity et python, ce qui n'est pas forcément ce qu'on veut, faire en sorte qu'il indique seulement un fail de calibration
+                # elif(self.request == self.CALIBRATION_CHECK and self.isConnected):
+                #     if(not self.calibrationMode):
+                #         response = self.request + "|" + self.content
+                #         self.socket.send_string(response)
+                #     else:
+                #         self.socket.send_string("-1") # TODO : ce message déconnectera unity et python, ce qui n'est pas forcément ce qu'on veut, faire en sorte qu'il indique seulement un fail de calibration
 
-                elif(self.request == self.TRIGGERSETUP_ZMQ and self.isConnected):
+                elif(self.request == self.TRIGGER_SETUP_ZMQ and self.isConnected):
                     response = self.request + "|" + self.content
                     self.socket.send_string(response)
                     self.helper.triggerSetupSignal.emit(self.content)
@@ -187,6 +190,8 @@ class EventPollerThread(QtCore.QThread):
         label = msg_dataTab[0]
         additionalInformation = ""
         for i in range(1, len(msg_dataTab)):
+            if additionalInformation is not "":
+                additionalInformation += ";"
             additionalInformation += msg_dataTab[i]
 
         posixtime = time.time() * 1000
@@ -200,7 +205,7 @@ class EventPollerThread(QtCore.QThread):
         nb_marker = 1
         markers = np.empty((nb_marker,), dtype=_dtype_trigger)
         #markers['pos'][0] = self.current_pos
-        print("posXTime0 : ", self.posXTime0 )
+        #print("posXTime0 : ", self.posXTime0 )
         pos_curr= round(((eventTime-self.posXTime0)*1000)/self.samplingRate)
         
         
