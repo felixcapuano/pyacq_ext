@@ -154,7 +154,6 @@ class EventPollerThread(QtCore.QThread):
                     response = self.request + "|" + self.content
                     self.socket.send_string(response)
                     self.helper.resetSignal.emit(True)
-                    print("set calib mode")
 
 
                 elif(self.request == self.RESET_ZMQ and self.isConnected):
