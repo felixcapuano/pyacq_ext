@@ -192,7 +192,6 @@ class EventPollerThread(QtCore.QThread):
             if additionalInformation is not "":
                 additionalInformation += ";"
             additionalInformation += msg_dataTab[i]
-
         posixtime = time.time() * 1000
         latency = posixtime - eventTime
         #print("EventTime : ", eventTime )
