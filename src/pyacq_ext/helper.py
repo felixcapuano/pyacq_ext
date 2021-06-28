@@ -7,4 +7,5 @@ class Helper(QObject):
     resetSignal = pyqtSignal(bool)
     triggerSetupSignal = pyqtSignal(str)
     resultSignal = pyqtSignal()
+    settingSignal = pyqtSignal(str)
 
