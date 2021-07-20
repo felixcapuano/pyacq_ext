@@ -33,7 +33,7 @@ class EventPollerThread(QtCore.QThread):
     RESULT_ZMQ = "RESULT_ZMQ"
     OK_ZMQ = "OK_ZMQ"
 
-    START_CALIBRATION_ZMQ = "START_CALIBRATION_ZMQ"
+    START_SESSION = "START_SESSION"
     RESET_ZMQ = "RESET_ZMQ"
     CALIBRATION_CHECK_ZMQ = "CALIBRATION_CHECK_ZMQ"
     TRIGGER_SETUP_ZMQ = "TRIGGER_SETUP_ZMQ"
@@ -127,6 +127,7 @@ class EventPollerThread(QtCore.QThread):
                     self.socket.send_string(response)
                     self.isConnected = False
                     self.reset()
+                    self.helper.stopSignal.emit(True)
                     print("Stop acquiring")
 
                 elif (self.request == self.START_ZMQ):
@@ -151,16 +152,16 @@ class EventPollerThread(QtCore.QThread):
                         #self.socket.send_string(self.QUIT_ZMQ)
                     #self.reset()
 
-                elif (self.request == self.START_CALIBRATION_ZMQ and self.isConnected):
+                elif (self.request == self.START_SESSION and self.isConnected):
                     response = self.request + "|" + self.content
                     self.socket.send_string(response)
-                    self.helper.resetSignal.emit(True)
+                    self.helper.startSessionSignal.emit(self.content)
 
 
                 elif(self.request == self.RESET_ZMQ and self.isConnected):
                     response = self.request + "|" + self.content
                     self.socket.send_string(response)
-                    self.helper.resetSignal.emit(False)
+                    self.helper.resetSignal.emit()
 
                 # elif(self.request == self.CALIBRATION_CHECK and self.isConnected):
                 #     if(not self.calibrationMode):
@@ -210,7 +211,7 @@ class EventPollerThread(QtCore.QThread):
         markers = np.empty((nb_marker,), dtype=_dtype_trigger)
         #markers['pos'][0] = self.current_pos
         #print("posXTime0 : ", self.posXTime0 )
-        pos_curr= round(((eventTime-self.posXTime0)*1000)/self.samplingRate)
+        pos_curr = round(((eventTime - self.posXTime0) * self.samplingRate) / 1000)
         
         
         #self.TrigFile.write(str(pos_curr)  + '\n')
